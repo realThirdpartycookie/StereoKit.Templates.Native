@@ -1,18 +1,41 @@
-cmake_minimum_required(VERSION 3.11)
+# For Android
+# Install Android SDK
+# Install Android NDK
+# Install JDK
+# NDK is good to have in PATH, it should be communicated via the toolchain
+# -DCMAKE_TOOLCHAIN_FILE="%NDK%/build/cmake/android.toolchain.cmake"
+# Android SDK should be indicated via ANDROID_SDK_ROOT
+# -DANDROID_SDK_ROOT="C:/Data/Tools/Android" ^
+# JDK bin should be in PATH
+# C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08\bin
+
+cmake_minimum_required(VERSION 3.21)
 project(SKNativeTemplate VERSION "0.1.0" LANGUAGES CXX C)
 
-add_executable( ${PROJECT_NAME} )
+# Vars for the Android APK
+set(ANDROID_PACKAGE_NAME       "com.example.${PROJECT_NAME}")
+set(ANDROID_LABEL              "SK Native Template")
+set(ANDROID_MIN_SDK_VERSION    29)
+set(ANDROID_TARGET_SDK_VERSION 32)
+
+# Depending on target, we build a library, or an exe
+if (ANDROID)
+	add_library(${PROJECT_NAME} SHARED)
+else()
+	add_executable   (${PROJECT_NAME})
+	add_custom_target(run DEPENDS ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
+endif()
 
 # Grab and build StereoKit from the GitHub repository. Here we're setting SK up
 # as a statically linked library.
 include(FetchContent)
 set(SK_BUILD_TESTS       OFF CACHE INTERNAL "")
-set(SK_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(SK_BUILD_SHARED_LIBS ON  CACHE INTERNAL "") # Shared libraries allows for faster builds!
+set(SK_PHYSICS           OFF CACHE INTERNAL "") # SK Physics is deprecated, simplifies build.
 FetchContent_Declare(
 	StereoKitC
 	GIT_REPOSITORY https://github.com/StereoKit/StereoKit.git
-	GIT_TAG        v0.3.10
-)
+	GIT_TAG        v0.3.10 ) # Version tag, could also be a branch name like "develop", or a git hash.
 FetchContent_MakeAvailable(StereoKitC)
 
 # Link to dependencies
@@ -31,3 +54,9 @@ skshaderc_compile_headers( ${PROJECT_NAME}
 	${CMAKE_BINARY_DIR}/shaders/
 	"-O3 -si -t xe -i ${stereokitc_SOURCE_DIR}/tools/include"
 	src/shaders/floor.hlsl)
+
+# This needs to be called at the end, or it may miss finding any shared
+# libraries that are attached to the ${PROJECT_NAME} target.
+if (ANDROID)
+	include(android/AndroidBuild.cmake)
+endif()
