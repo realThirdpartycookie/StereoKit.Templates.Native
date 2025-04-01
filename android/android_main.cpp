@@ -13,6 +13,7 @@ extern int main(int argc, char **argv);
 
 // Our own variables for tracking state.
 static bool      android_initialized;
+static bool      android_finish;
 static pthread_t sk_thread_id;
 
 extern "C" {
@@ -20,6 +21,8 @@ extern "C" {
 void* sk_thread(void* arg) {
 	// Invoke the app's "main" function.
 	main(0, NULL);
+
+	android_finish = true;
 	return NULL;
 }
 
@@ -37,10 +40,11 @@ static void android_on_cmd(android_app* state, int32_t cmd) {
 			pthread_create(&sk_thread_id, NULL, sk_thread, NULL);
 		}
 		break;
-	case APP_CMD_TERM_WINDOW:  break;
-	case APP_CMD_LOST_FOCUS:   break;
-	case APP_CMD_GAINED_FOCUS: break;
-	default:                   break;
+	case APP_CMD_DESTROY:
+		if (sk_is_stepping())
+			sk_quit(quit_reason_user);
+		break;
+	default: break;
 	}
 }
 
@@ -48,18 +52,31 @@ void android_main(struct android_app* state) {
 	// Register our event callback
 	state->onAppCmd = android_on_cmd;
 	android_initialized = false;
+	android_finish      = false;
+	sk_thread_id        = {};
 
 	// The main Android event loop
 	while (state->destroyRequested == 0) {
 		// Process system events
 		int32_t              events;
 		android_poll_source* source;
-		while (ALooper_pollAll(android_initialized ? 0 : -1, NULL, &events, (void**)&source) >= 0)
+		if (ALooper_pollOnce(android_initialized ? 0 : -1, NULL, &events, (void**)&source) >= 0)
 			if (source) source->process(state, source);
+
+		if (android_finish) {
+			android_finish = false;
+			ANativeActivity_finish(state->activity);
+		}
 	}
 
 	// If we finished before the SK app has, send it a quit message
-	sk_quit(quit_reason_user);
+	if (sk_is_stepping())
+		sk_quit(quit_reason_user);
+	ANativeActivity_finish(state->activity);
+
+	// Wait until StereoKit thread has finished cleaning up
+	pthread_join(sk_thread_id, NULL);
+	exit(0);
 }
 
 }
