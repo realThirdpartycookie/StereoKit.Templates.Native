@@ -21,8 +21,17 @@ set(ANDROID_TARGET_SDK_VERSION 32)
 if (ANDROID)
 	add_library(${PROJECT_NAME} SHARED)
 else()
-	add_executable   (${PROJECT_NAME})
-	add_custom_target(run DEPENDS ${PROJECT_NAME} COMMAND $<TARGET_FILE:${PROJECT_NAME}>)
+	add_executable(${PROJECT_NAME})
+
+	# Add a "run" target that allows us to build and run with a single command.
+	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			$<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+			$<TARGET_FILE_DIR:${PROJECT_NAME}>
+		COMMAND_EXPAND_LISTS)
+	add_custom_target(run DEPENDS ${PROJECT_NAME}
+		COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 
 # Grab and build StereoKit from the GitHub repository. Here we're setting SK up
@@ -52,10 +61,11 @@ target_sources( ${PROJECT_NAME} PRIVATE
 skshaderc_compile_headers( ${PROJECT_NAME}
 	${CMAKE_BINARY_DIR}/shaders/
 	"-O3 -si -t xe -i ${stereokitc_SOURCE_DIR}/tools/include"
-	src/shaders/floor.hlsl)
+	src/shaders/floor.hlsl
+)
 
 # This needs to be called at the end, or it may miss finding any shared
-# libraries that are attached to the ${PROJECT_NAME} target.
+# libraries that are linked to the ${PROJECT_NAME} target.
 if (ANDROID)
 	include(android/AndroidBuild.cmake)
 endif()
