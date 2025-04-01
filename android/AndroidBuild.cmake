@@ -1,15 +1,58 @@
+# These are used by AndroidManifest.xml. We can calculate them sufficiently
+# well this way, but feel free to alter this.
+set(APK_VERSION_NAME       "${CMAKE_PROJECT_VERSION}")
+math(EXPR APK_VERSION_CODE "${PROJECT_VERSION_MAJOR} * 10000 + ${PROJECT_VERSION_MINOR} * 100 + ${PROJECT_VERSION_PATCH}")
 
-set(ANDROID_VERSION_NAME       "${CMAKE_PROJECT_VERSION}")
-math(EXPR ANDROID_VERSION_CODE "${PROJECT_VERSION_MAJOR} * 10000 + ${PROJECT_VERSION_MINOR} * 100 + ${PROJECT_VERSION_PATCH}")
+###############################################################################
+## Find our SDK locations and paths
+###############################################################################
 
-#set(ANDROID_SDK_ROOT "C:/Android") #### This needs to be not hard coded
-set(BUILD_TOOLS_PATH "${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS_VERSION}")
-set(AAPT2    "${BUILD_TOOLS_PATH}/aapt2")
-set(AAPT     "${BUILD_TOOLS_PATH}/aapt")
-set(ZIPALIGN "${BUILD_TOOLS_PATH}/zipalign")
-set(APKSIGN  "${BUILD_TOOLS_PATH}/apksigner")
-set(D8       "${BUILD_TOOLS_PATH}/d8")
-set(JAVAC    "javac")
+# Find the Android SDK (not NDK!)
+if(DEFINED ENV{ANDROID_SDK_ROOT})
+	set(ANDROID_SDK_ROOT $ENV{ANDROID_SDK_ROOT})
+elseif(DEFINED ENV{ANDROID_HOME})
+	set(ANDROID_SDK_ROOT $ENV{ANDROID_HOME})
+elseif(ANDROID_HOME)
+	set(ANDROID_SDK_ROOT ANDROID_HOME)
+elseif(ANDROID_SDK_ROOT)
+else()
+	message(FATAL_ERROR "Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME as an environment or cmake variable.")
+endif()
+
+# Find a build-tools folder in the Android SDK that matches our CMAKE_SYSTEM_VERSION
+if(ANDROID_BUILD_TOOLS_VERSION AND EXISTS "${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS_VERSION}")
+	set(ANDROID_BUILD_TOOLS_PATH "${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS_VERSION}")
+else()
+	file(GLOB BUILD_TOOLS_VERSIONS LIST_DIRECTORIES true "${ANDROID_SDK_ROOT}/build-tools/*")
+	foreach(VERSION_DIR ${BUILD_TOOLS_VERSIONS})
+		get_filename_component(VERSION_NAME ${VERSION_DIR} NAME)
+		if(VERSION_NAME MATCHES "${CMAKE_SYSTEM_VERSION}\.")
+			set(ANDROID_BUILD_TOOLS_PATH "${VERSION_DIR}")
+			break()
+		endif()
+	endforeach()
+endif()
+if(NOT EXISTS "${ANDROID_BUILD_TOOLS_PATH}")
+	message(STATUS "Can't find build-tools matching ANDROID_BUILD_TOOLS_VERSION ${ANDROID_BUILD_TOOLS_VERSION} or CMAKE_SYSTEM_VERSION ${CMAKE_SYSTEM_VERSION}")
+endif()
+
+message(STATUS "Android ANDROID_SDK_ROOT         : ${ANDROID_SDK_ROOT}")
+message(STATUS "Android CMAKE_ANDROID_NDK        : ${CMAKE_ANDROID_NDK}")
+message(STATUS "Android CMAKE_ANDROID_ARCH_ABI   : ${CMAKE_ANDROID_ARCH_ABI}")
+message(STATUS "Android CMAKE_SYSTEM_VERSION     : ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "Android ANDROID_BUILD_TOOLS_PATH : ${ANDROID_BUILD_TOOLS_PATH}")
+
+###############################################################################
+## Get tools for building APKs
+###############################################################################
+
+set(AAPT2    "${ANDROID_BUILD_TOOLS_PATH}/aapt2")
+set(AAPT     "${ANDROID_BUILD_TOOLS_PATH}/aapt")
+set(ZIPALIGN "${ANDROID_BUILD_TOOLS_PATH}/zipalign")
+set(APKSIGN  "${ANDROID_BUILD_TOOLS_PATH}/apksigner")
+set(D8       "${ANDROID_BUILD_TOOLS_PATH}/d8")
+find_program(JAVAC   NAMES javac   REQUIRED)
+find_program(KEYTOOL NAMES keytool REQUIRED)
 # https://developer.android.com/tools/aapt2
 # https://developer.android.com/build/building-cmdline
 
@@ -18,7 +61,7 @@ set(JAVAC    "javac")
 ###############################################################################
 
 # Set default keystore variables
-set(DEFAULT_KEYSTORE       "${CMAKE_SOURCE_DIR}/debug.keystore")
+set(DEFAULT_KEYSTORE       "${CMAKE_CURRENT_BINARY_DIR}/debug.keystore")
 set(DEFAULT_KEYSTORE_ALIAS "androiddebugkey")
 set(DEFAULT_KEYSTORE_PASS  "android")
 set(DEFAULT_KEY_ALIAS_PASS "android")
@@ -29,10 +72,9 @@ set(KEY_ALIAS      "${DEFAULT_KEYSTORE_ALIAS}" CACHE STRING "Alias for the key")
 set(KEYSTORE_PASS  "${DEFAULT_KEYSTORE_PASS}"  CACHE STRING "Password for the keystore")
 set(KEY_ALIAS_PASS "${DEFAULT_KEY_ALIAS_PASS}" CACHE STRING "Password for the key")
 
-find_program(KEYTOOL_EXECUTABLE NAMES keytool)
 if(NOT EXISTS "${KEYSTORE}")
 	message(STATUS "Keystore not found, generating new keystore...")
-	execute_process(COMMAND ${KEYTOOL_EXECUTABLE}
+	execute_process(COMMAND ${KEYTOOL}
 		-genkeypair -v
 		-keyalg RSA -keysize 2048 -validity 10000
 		-keystore "${KEYSTORE}" -alias "${KEY_ALIAS}"
@@ -69,13 +111,13 @@ target_sources            (${PROJECT_NAME} PRIVATE
 # dependencies have dependencies that are shared, you may need to improve this!
 get_target_property(PROJECT_LIBRARIES ${PROJECT_NAME} LINK_LIBRARIES)
 set(APK_SRC_LIBRARIES $<TARGET_FILE:${PROJECT_NAME}>)
-set(APK_COPY_LIBRARIES lib/${ANDROID_ABI}/$<TARGET_FILE_NAME:${PROJECT_NAME}>)
+set(APK_COPY_LIBRARIES lib/${CMAKE_ANDROID_ARCH_ABI}/$<TARGET_FILE_NAME:${PROJECT_NAME}>)
 foreach(CURR ${PROJECT_LIBRARIES})
 	if (TARGET ${CURR})
 		get_target_property(TARGET_TYPE ${CURR} TYPE)
 		if(${TARGET_TYPE} STREQUAL "SHARED_LIBRARY")
 			list(APPEND APK_SRC_LIBRARIES $<TARGET_FILE:${CURR}>)
-			list(APPEND APK_COPY_LIBRARIES lib/${ANDROID_ABI}/$<TARGET_FILE_NAME:${CURR}>)
+			list(APPEND APK_COPY_LIBRARIES lib/${CMAKE_ANDROID_ARCH_ABI}/$<TARGET_FILE_NAME:${CURR}>)
 		endif()
 	endif()
 endforeach()
@@ -86,78 +128,80 @@ endforeach()
 
 # If these files exist from a previous build, we get overwrite errors when
 # generating the APK.
-set(APK_DIR "${CMAKE_CURRENT_BINARY_DIR}/apk")
-set(APK_NAME_ROOT ${APK_DIR}/${PROJECT_NAME})
+set(APK_TEMP "${CMAKE_CURRENT_BINARY_DIR}/apk")
+set(APK_BASE      ${APK_TEMP}/${PROJECT_NAME}.1.base.apk)
+set(APK_UNALIGNED ${APK_TEMP}/${PROJECT_NAME}.2.unaligned.apk)
+set(APK_UNSIGNED  ${APK_TEMP}/${PROJECT_NAME}.3.unsigned.apk)
  
 # We need to make a few folders so copies can succeed when copying to them.
 file(MAKE_DIRECTORY 
-	"${APK_DIR}/obj"
-	"${APK_DIR}/lib/${ANDROID_ABI}")
+	"${APK_TEMP}/obj"
+	"${APK_TEMP}/lib/${CMAKE_ANDROID_ARCH_ABI}")
 
 # Manifest has a couple name/number variables that we want to resolve nicely!
 configure_file(
 	android/AndroidManifest.xml
-	${APK_DIR}/obj/AndroidManifest.xml
+	${APK_TEMP}/obj/AndroidManifest.xml
 	@ONLY)
 
 # Put together a dummy java file for the APK
-file(WRITE ${APK_DIR}/src/android/Empty.java "public class Empty {}")
+file(WRITE ${APK_TEMP}/src/android/Empty.java "public class Empty {}")
 add_custom_command(
-	DEPENDS ${APK_DIR}/src/android/Empty.java
-	OUTPUT  ${APK_DIR}/obj/classes.dex
-	COMMAND ${JAVAC} -d ${APK_DIR}/obj -classpath ${ANDROID_SDK_ROOT}/platforms/${ANDROID_PLATFORM}/android.jar -sourcepath src ${APK_DIR}/src/android/Empty.java
-	COMMAND ${D8} --release ${APK_DIR}/obj/Empty.class --output ${APK_DIR}/obj
+	DEPENDS ${APK_TEMP}/src/android/Empty.java
+	OUTPUT  ${APK_TEMP}/obj/classes.dex
+	COMMAND ${JAVAC} -d ${APK_TEMP}/obj -classpath ${ANDROID_SDK_ROOT}/platforms/android-${CMAKE_SYSTEM_VERSION}/android.jar -sourcepath src ${APK_TEMP}/src/android/Empty.java
+	COMMAND ${D8} --release ${APK_TEMP}/obj/Empty.class --output ${APK_TEMP}/obj
 	COMMENT "Building Java boilerplate for APK" )
 
 # Build the resources
 add_custom_command(
-	OUTPUT  ${APK_DIR}/obj/apk_resources.zip
+	OUTPUT  ${APK_TEMP}/obj/apk_resources.zip
 	DEPENDS ${CMAKE_SOURCE_DIR}/android/resources
 	COMMAND ${AAPT2} compile
 		--dir ${CMAKE_SOURCE_DIR}/android/resources
-		-o ${APK_DIR}/obj/apk_resources.zip
+		-o ${APK_TEMP}/obj/apk_resources.zip
 	COMMENT "Compiling APK resources" )
 
 # Assemble the base APK, resources and assets
 add_custom_command(
 	DEPENDS
 		${CMAKE_SOURCE_DIR}/assets
-		${APK_DIR}/obj/classes.dex
-		${APK_DIR}/obj/apk_resources.zip
-		${APK_DIR}/obj/AndroidManifest.xml
+		${APK_TEMP}/obj/classes.dex
+		${APK_TEMP}/obj/apk_resources.zip
+		${APK_TEMP}/obj/AndroidManifest.xml
 	OUTPUT
-		${APK_NAME_ROOT}.1.unaligned.apk 
-	COMMAND ${CMAKE_COMMAND} -E rm -f ${APK_NAME_ROOT}.1.unaligned.apk
+		${APK_BASE}
+	COMMAND ${CMAKE_COMMAND} -E rm -f ${APK_BASE}
 	COMMAND ${AAPT2} link # Link all the files into an APK
-		-o ${APK_NAME_ROOT}.1.unaligned.apk 
-		--manifest ${APK_DIR}/obj/AndroidManifest.xml
+		-o ${APK_BASE}
+		--manifest ${APK_TEMP}/obj/AndroidManifest.xml
 		-A ${CMAKE_SOURCE_DIR}/assets
-		-I ${ANDROID_SDK_ROOT}/platforms/${ANDROID_PLATFORM}/android.jar
-		${APK_DIR}/obj/apk_resources.zip
-	COMMAND cd ${APK_DIR}/obj
-	COMMAND ${AAPT} add ${APK_NAME_ROOT}.1.unaligned.apk classes.dex
+		-I ${ANDROID_SDK_ROOT}/platforms/android-${CMAKE_SYSTEM_VERSION}/android.jar
+		${APK_TEMP}/obj/apk_resources.zip
+	COMMAND cd ${APK_TEMP}/obj
+	COMMAND ${AAPT} add ${APK_BASE} classes.dex
     COMMENT "Building base APK")
 
 # Assemble the final APK, add binaries and align/sign the base APK
 add_custom_command(
 	DEPENDS
 		${PROJECT_NAME}
-		${APK_NAME_ROOT}.1.unaligned.apk
+		${APK_BASE}
 	OUTPUT
 		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apk
 	COMMAND ${CMAKE_COMMAND} -E rm -f
-		${APK_NAME_ROOT}.2.aligned.apk
-		${APK_NAME_ROOT}.3.unsigned.apk
+		${APK_UNALIGNED}
+		${APK_UNSIGNED}
 		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apk
-	COMMAND cd ${APK_DIR}/obj
+	COMMAND cd ${APK_TEMP}/obj
 	COMMAND ${CMAKE_COMMAND} -E copy
 		${APK_SRC_LIBRARIES}
-		${APK_DIR}/lib/${ANDROID_ABI}/
-	COMMAND cd ${APK_DIR}
-	COMMAND ${CMAKE_COMMAND} -E copy ${APK_NAME_ROOT}.1.unaligned.apk ${APK_NAME_ROOT}.2.aligned.apk
-	COMMAND ${AAPT} add ${APK_NAME_ROOT}.2.aligned.apk ${APK_COPY_LIBRARIES}
-	COMMAND ${ZIPALIGN} 4 ${APK_NAME_ROOT}.2.aligned.apk ${APK_NAME_ROOT}.3.unsigned.apk
-	COMMAND ${APKSIGN} sign --ks ${KEYSTORE} --ks-key-alias ${KEY_ALIAS} --ks-pass pass:${KEYSTORE_PASS} --key-pass pass:${KEY_ALIAS_PASS} --out ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apk ${APK_NAME_ROOT}.3.unsigned.apk
+		${APK_TEMP}/lib/${CMAKE_ANDROID_ARCH_ABI}/
+	COMMAND cd ${APK_TEMP}
+	COMMAND ${CMAKE_COMMAND} -E copy ${APK_BASE} ${APK_UNALIGNED}
+	COMMAND ${AAPT} add ${APK_UNALIGNED} ${APK_COPY_LIBRARIES}
+	COMMAND ${ZIPALIGN} 4 ${APK_UNALIGNED} ${APK_UNSIGNED}
+	COMMAND ${APKSIGN} sign --ks ${KEYSTORE} --ks-key-alias ${KEY_ALIAS} --ks-pass pass:${KEYSTORE_PASS} --key-pass pass:${KEY_ALIAS_PASS} --out ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apk ${APK_UNSIGNED}
 	COMMENT "Building final APK")
 
 # Wrap up APK building into a target!

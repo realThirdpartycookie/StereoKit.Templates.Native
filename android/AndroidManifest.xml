@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" 
 	package="@ANDROID_PACKAGE_NAME@"
-	android:versionCode="@ANDROID_VERSION_CODE@"
-	android:versionName="@ANDROID_VERSION_NAME@">
+	android:versionCode="@APK_VERSION_CODE@"
+	android:versionName="@APK_VERSION_NAME@">
 
 	<uses-sdk 
 		android:minSdkVersion   ="@ANDROID_MIN_SDK_VERSION@"

@@ -14,7 +14,6 @@ project(SKNativeTemplate VERSION "0.1.0" LANGUAGES CXX C)
 
 # Vars for the Android APK
 set(ANDROID_PACKAGE_NAME       "com.example.${PROJECT_NAME}")
-set(ANDROID_LABEL              "SK Native Template")
 set(ANDROID_MIN_SDK_VERSION    29)
 set(ANDROID_TARGET_SDK_VERSION 32)
 
