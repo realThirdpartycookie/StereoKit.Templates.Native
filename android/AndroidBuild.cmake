@@ -149,7 +149,7 @@ file(WRITE ${APK_TEMP}/src/android/Empty.java "public class Empty {}")
 add_custom_command(
 	DEPENDS ${APK_TEMP}/src/android/Empty.java
 	OUTPUT  ${APK_TEMP}/obj/classes.dex
-	COMMAND ${JAVAC} -d ${APK_TEMP}/obj -classpath ${ANDROID_SDK_ROOT}/platforms/android-${CMAKE_SYSTEM_VERSION}/android.jar -sourcepath src ${APK_TEMP}/src/android/Empty.java
+	COMMAND ${JAVAC} -d ${APK_TEMP}/obj -sourcepath src ${APK_TEMP}/src/android/Empty.java
 	COMMAND ${D8} --release ${APK_TEMP}/obj/Empty.class --output ${APK_TEMP}/obj
 	COMMENT "Building Java boilerplate for APK" )
 
@@ -200,7 +200,7 @@ add_custom_command(
 	COMMAND cd ${APK_TEMP}
 	COMMAND ${CMAKE_COMMAND} -E copy ${APK_BASE} ${APK_UNALIGNED}
 	COMMAND ${AAPT} add ${APK_UNALIGNED} ${APK_COPY_LIBRARIES}
-	COMMAND ${ZIPALIGN} 4 ${APK_UNALIGNED} ${APK_UNSIGNED}
+	COMMAND ${ZIPALIGN} -p 4 ${APK_UNALIGNED} ${APK_UNSIGNED}
 	COMMAND ${APKSIGN} sign --ks ${KEYSTORE} --ks-key-alias ${KEY_ALIAS} --ks-pass pass:${KEYSTORE_PASS} --key-pass pass:${KEY_ALIAS_PASS} --out ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.apk ${APK_UNSIGNED}
 	COMMENT "Building final APK")
 
