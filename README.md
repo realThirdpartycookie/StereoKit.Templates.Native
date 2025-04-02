@@ -38,25 +38,54 @@ This template also supports building and running APKs for Android! Setup for thi
 
 ## Android Setup
 
-To build for Android, you need a few SDKs! [Android Studio](https://developer.android.com/studio)'s SDK Manager can be a good tool to work with these SDKs, but you can also install them directly!
-[Android NDK](https://developer.android.com/ndk/downloads) 
-- To build native binaries for Android
-- Tested with version r25c
-Android SDK
-- To package and deploy APKs
-- Tested with build-tools 32.0.0
-Java SDK
-- For signing keystores, and java boilerplate.
+To build for Android, you need a few SDKs! [Android Studio](https://developer.android.com/studio) has a good interface for grabbing these, and doubles as a nice tool for inspecting APKs.
 
-[Ninja](https://ninja-build.org/) 
+### Android SDKs
+From [Android Studio](https://developer.android.com/studio), go to Tools->SDK Manager.
+- Under SDK Platforms, add **API Level 32**
+- Under SDK Tools, add **Android SDK Build-Tools 32.0.0**
+- Under SDK Tools, add **NDK 25.2.9519653**
+- Make note of the **Android SDK Location** at the top of this panel.
+
+> SDK Platform version and SDK Tools version should match! Other versions may be fine, but pick matching versions. These instructions were tested with 32. Other NDK versions may work as well, but StereoKit is officially built with 25.2.9519653.
+
+From the Android SDK location you noted, you'll need to suppy these variables as environment variables, or as configure parameters to CMake! This is how I would set these on windows via Powershell.
+```shell
+# Your path may vary
+
+[Environment]::SetEnvironmentVariable('ANDROID_HOME',     'C:\Users\[user]\AppData\Local\Android\Sdk', 'User')
+[Environment]::SetEnvironmentVariable('ANDROID_NDK_HOME', 'C:\Users\[user]\AppData\Local\Android\Sdk\ndk\25.2.9519653', 'User')
+
+# Or just launch the GUI
+rundll32 sysdm.cpl,EditEnvironmentVariables
+```
+
+### Java SDK (JDK)
+The JDK is installed alongside Android Studio, but may not be immediately accessible. In particular, packaging APKs requires `javac` and `keytool` from the JDK! These may be in PATH already, and if so, you're all set!
+```
+where javac
+where keytool
+```
+But, if neither of these produces a result, you'll have to find the JDK's install directory! Mine was next to Android Studio. You can either add the JDK bin folder to path, or just set JDK's root folder to the JAVA_HOME variable that this template looks for.
+```shell
+# Your path may vary
+
+# If you don't want to add to PATH
+[Environment]::SetEnvironmentVariable('JAVA_HOME', 'C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08', 'User')
+
+# Or add to path. It's always safest to add via GUI, but here's some powershell
+# that'll do fine. Note that this is JDK\bin, and not JDK's root.
+[Environment]::SetEnvironmentVariable('PATH', [System.Environment]::GetEnvironmentVariable('PATH', 'User') + ';' + 'C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08\bin', 'User')
+
+# Or just launch the GUI
+rundll32 sysdm.cpl,EditEnvironmentVariables
+```
+
+### Ninja
+This is a commonly used build tool that makes builds faster! In theory it's optional, but you may need to do some troubleshooting without it.
+Ninja's [site is here](https://ninja-build.org/), but you can install it quite easily via CLI:
 - Windows: `winget install Ninja-build.Ninja`
 - Linux (Ubuntu): `apt-get install ninja-build`
-
-Environment or cmake variables required:
-ANDROID_NDK_HOME
-ANDROID_HOME
-JAVA_HOME (or java bin folder in path)
-ANDROID_BUILD_TOOLS_VERSION (optional)
 
 ## Android Build
 
@@ -67,7 +96,8 @@ ANDROID_BUILD_TOOLS_VERSION (optional)
 mkdir build-android
 cd build-android
 
-# Configure the build
+# Configure the build, I'll often make a .bat file for this configure command
+# just to make it easier to do!
 cmake .. ^
   -G Ninja ^
   -DCMAKE_ANDROID_NDK=%ANDROID_NDK_HOME% ^
