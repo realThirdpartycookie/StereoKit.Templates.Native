@@ -25,9 +25,7 @@ else()
 
 	# Add a "run" target that allows us to build and run with a single command.
 	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			$<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
-			$<TARGET_FILE_DIR:${PROJECT_NAME}>
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> $<TARGET_FILE_DIR:${PROJECT_NAME}>
 		COMMAND_EXPAND_LISTS)
 	add_custom_target(run DEPENDS ${PROJECT_NAME}
 		COMMAND $<TARGET_FILE:${PROJECT_NAME}>

@@ -7,16 +7,18 @@ math(EXPR APK_VERSION_CODE "${PROJECT_VERSION_MAJOR} * 10000 + ${PROJECT_VERSION
 ## Find our SDK locations and paths
 ###############################################################################
 
-# Find the Android SDK (not NDK!)
-if(DEFINED ENV{ANDROID_SDK_ROOT})
-	set(ANDROID_SDK_ROOT $ENV{ANDROID_SDK_ROOT})
-elseif(DEFINED ENV{ANDROID_HOME})
-	set(ANDROID_SDK_ROOT $ENV{ANDROID_HOME})
-elseif(ANDROID_HOME)
-	set(ANDROID_SDK_ROOT ANDROID_HOME)
-elseif(ANDROID_SDK_ROOT)
-else()
-	message(FATAL_ERROR "Android SDK not found. Set ANDROID_SDK_ROOT or ANDROID_HOME as an environment or cmake variable.")
+# Find the Android SDK
+if(NOT DEFINED ANDROID_SDK_ROOT)
+	if(DEFINED ENV{ANDROID_HOME})
+		set(ANDROID_SDK_ROOT $ENV{ANDROID_HOME})
+	elseif(DEFINED ENV{ANDROID_SDK_ROOT})
+		set(ANDROID_SDK_ROOT $ENV{ANDROID_SDK_ROOT})
+	elseif(DEFINED ANDROID_HOME)
+		set(ANDROID_SDK_ROOT ANDROID_HOME)
+	endif()
+endif()
+if (NOT EXISTS "${ANDROID_SDK_ROOT}/platform-tools")
+	message(FATAL_ERROR "Android SDK not found. Set ANDROID_HOME or ANDROID_SDK_ROOT as an environment or cmake variable.")
 endif()
 
 # Find a build-tools folder in the Android SDK that matches our CMAKE_SYSTEM_VERSION
@@ -36,11 +38,22 @@ if(NOT EXISTS "${ANDROID_BUILD_TOOLS_PATH}")
 	message(STATUS "Can't find build-tools matching ANDROID_BUILD_TOOLS_VERSION ${ANDROID_BUILD_TOOLS_VERSION} or CMAKE_SYSTEM_VERSION ${CMAKE_SYSTEM_VERSION}")
 endif()
 
-message(STATUS "Android ANDROID_SDK_ROOT         : ${ANDROID_SDK_ROOT}")
-message(STATUS "Android CMAKE_ANDROID_NDK        : ${CMAKE_ANDROID_NDK}")
-message(STATUS "Android CMAKE_ANDROID_ARCH_ABI   : ${CMAKE_ANDROID_ARCH_ABI}")
-message(STATUS "Android CMAKE_SYSTEM_VERSION     : ${CMAKE_SYSTEM_VERSION}")
-message(STATUS "Android ANDROID_BUILD_TOOLS_PATH : ${ANDROID_BUILD_TOOLS_PATH}")
+# Find JDK bin folder
+if(NOT DEFINED JAVA_HOME)
+	if(DEFINED ENV{JAVA_HOME})
+		set(JAVA_HOME $ENV{JAVA_HOME})
+	endif()
+endif()
+if (DEFINED JAVA_HOME)
+	cmake_path(APPEND JAVA_HOME_BIN ${JAVA_HOME} "bin")
+endif()
+
+message(STATUS "APK build var - ANDROID_SDK_ROOT         : ${ANDROID_SDK_ROOT}")
+message(STATUS "APK build var - CMAKE_ANDROID_NDK        : ${CMAKE_ANDROID_NDK}")
+message(STATUS "APK build var - ANDROID_BUILD_TOOLS_PATH : ${ANDROID_BUILD_TOOLS_PATH}")
+message(STATUS "APK build var - JAVA_HOME_BIN            : ${JAVA_HOME_BIN}")
+message(STATUS "APK build var - CMAKE_ANDROID_ARCH_ABI   : ${CMAKE_ANDROID_ARCH_ABI}")
+message(STATUS "APK build var - CMAKE_SYSTEM_VERSION     : ${CMAKE_SYSTEM_VERSION}")
 
 ###############################################################################
 ## Get tools for building APKs
@@ -51,8 +64,8 @@ set(AAPT     "${ANDROID_BUILD_TOOLS_PATH}/aapt")
 set(ZIPALIGN "${ANDROID_BUILD_TOOLS_PATH}/zipalign")
 set(APKSIGN  "${ANDROID_BUILD_TOOLS_PATH}/apksigner")
 set(D8       "${ANDROID_BUILD_TOOLS_PATH}/d8")
-find_program(JAVAC   NAMES javac   REQUIRED)
-find_program(KEYTOOL NAMES keytool REQUIRED)
+find_program(JAVAC   NAMES javac   REQUIRED PATHS ${JAVA_HOME_BIN})
+find_program(KEYTOOL NAMES keytool REQUIRED PATHS ${JAVA_HOME_BIN})
 # https://developer.android.com/tools/aapt2
 # https://developer.android.com/build/building-cmdline
 
@@ -73,7 +86,7 @@ set(KEYSTORE_PASS  "${DEFAULT_KEYSTORE_PASS}"  CACHE STRING "Password for the ke
 set(KEY_ALIAS_PASS "${DEFAULT_KEY_ALIAS_PASS}" CACHE STRING "Password for the key")
 
 if(NOT EXISTS "${KEYSTORE}")
-	message(STATUS "Keystore not found, generating new keystore...")
+	message(STATUS "APK keystore not found, generating new keystore...")
 	execute_process(COMMAND ${KEYTOOL}
 		-genkeypair -v
 		-keyalg RSA -keysize 2048 -validity 10000
@@ -87,7 +100,7 @@ if(NOT EXISTS "${KEYSTORE}")
 endif()
 
 # Debug message to confirm which keystore is being used
-message(STATUS "Using keystore: ${KEYSTORE} with alias ${KEY_ALIAS}")
+message(STATUS "APK using keystore: ${KEYSTORE} with alias ${KEY_ALIAS}")
 
 ###############################################################################
 ## Add glue code and libraries
