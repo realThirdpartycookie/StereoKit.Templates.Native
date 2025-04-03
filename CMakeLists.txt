@@ -51,6 +51,10 @@ set(ANDROID_PACKAGE_NAME       "com.example.${PROJECT_NAME}")
 set(ANDROID_MIN_SDK_VERSION    29)
 set(ANDROID_TARGET_SDK_VERSION 32)
 
+# If you need to use a custom OpenXR Loader, uncomment this line and change the
+# path to the loader you want!
+#set(OPENXR_CUSTOM_LOADER "${CMAKE_SOURCE_DIR}/loader/snapdragon/libopenxr_loader.so")
+
 #######################################
 ## Primary Target                    ##
 #######################################
@@ -87,6 +91,9 @@ include(FetchContent)
 set(SK_BUILD_TESTS       OFF CACHE INTERNAL "")
 set(SK_BUILD_SHARED_LIBS ON  CACHE INTERNAL "") # Shared libraries allows for faster builds!
 set(SK_PHYSICS           OFF CACHE INTERNAL "") # SK Physics is deprecated, simplifies build.
+if (ANDROID AND DEFINED OPENXR_CUSTOM_LOADER)
+	set(SK_DYNAMIC_OPENXR ON CACHE INTERNAL "")
+endif()
 FetchContent_Declare(
 	StereoKitC
 	GIT_REPOSITORY https://github.com/StereoKit/StereoKit.git
@@ -101,6 +108,14 @@ target_compile_options(StereoKitC PRIVATE
 target_link_libraries( ${PROJECT_NAME}
 	PRIVATE StereoKitC
 )
+
+# If a custom OpenXR Loader binary has been specified, we can add it to the
+# project as a shared library!
+if (ANDROID AND DEFINED OPENXR_CUSTOM_LOADER)
+	add_library          (custom_openxr_loader SHARED IMPORTED)
+	set_target_properties(custom_openxr_loader PROPERTIES IMPORTED_LOCATION ${OPENXR_CUSTOM_LOADER})
+	target_link_libraries(${PROJECT_NAME} PRIVATE custom_openxr_loader)
+endif()
 
 # This needs to be called after all libraries have been linked to
 # ${PROJECT_NAME}, or their shared binaries will be missed when building the

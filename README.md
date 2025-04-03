@@ -113,3 +113,7 @@ cmake --build build-android -j8 --target run
 # Or just build an APK
 cmake --build build-android -j8 --target apk
 ```
+
+## Custom OpenXR Loader
+
+If you need to use a custom OpenXR Loader for a non-conformant runtime such as Snapdragon Spaces, you can specify it with the `OPENXR_CUSTOM_LOADER` variable! See the CMakeLists.txt file for a commented out example. Note that you may need to do a _full_ clean and rebuild if you're switching between the standard and a custom loader. It may be better to have a different build folder per-loader.
