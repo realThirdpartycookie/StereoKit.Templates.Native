@@ -9,9 +9,8 @@ using namespace sk;
 material_t floor_mat;
 mesh_t     floor_mesh;
 
-mesh_t     cube_mesh;
-material_t cube_mat;
-pose_t     cube_pose = {{0,0,-0.5f}, quat_identity};
+model_t    model;
+pose_t     model_pose = {{0,0,-0.5f}, quat_identity};
 
 // app_settings is required by the Android binding code for inserting Activity
 // values required for initialization.
@@ -32,8 +31,7 @@ int main(int argc, char** argv) {
 	material_set_transparency(floor_mat, transparency_blend);
 	shader_release(floor_shader);
 
-	cube_mesh = mesh_gen_rounded_cube(vec3_one * 0.1f, 0.02f, 4);
-	cube_mat  = material_find        (default_id_material_ui);
+	model = model_create_file("Watermelon.glb");
 
 	// Main app loop.
 	sk_run([](){ // Step
@@ -41,14 +39,13 @@ int main(int argc, char** argv) {
 			mesh_draw(floor_mesh, floor_mat, matrix_ts({0,-1.5f,0}, {30,0.1f,30}));
 		}
 
-		ui_handle_begin("Cube", cube_pose, mesh_get_bounds(cube_mesh), false);
-		render_add_mesh(cube_mesh, cube_mat, matrix_identity);
+		ui_handle_begin("Cube", model_pose, model_get_bounds(model), false);
+		render_add_model(model, matrix_identity);
 		ui_handle_end();
 	}, [](){ // Shutdown
 		mesh_release    (floor_mesh);
 		material_release(floor_mat);
-		mesh_release    (cube_mesh);
-		material_release(cube_mat);
+		model_release   (model);
 	});
 
 	// Return based on why StereoKit quit.
