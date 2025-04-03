@@ -4,6 +4,12 @@ This is a basic StereoKit template for C/C++ using [CMake](https://cmake.org/). 
 
 This template directly references and builds the StereoKit repository rather than using pre-built binaries, so this template could also be great for those that wish to fork and modify StereoKit's code!
 
+## Project Structure
+
+- `/src` - Your application code.
+- `/Assets` - Assets used by the app, textures, models, etc.
+- `/android` - Android specific resources, build, and glue code.
+
 ## Command line instructions
 
 For those new to CMake, here's a quick example of how to compile and build this using the CLI! If something is going wrong, sometimes adding in a `-v` for verbose will give you some additional info you might not see from VS Code.
