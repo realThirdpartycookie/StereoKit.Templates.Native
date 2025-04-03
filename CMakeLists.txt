@@ -1,15 +1,45 @@
-# For Android
-# Install Android SDK
-# Install Android NDK
-# Install JDK
-# NDK is good to have in PATH, it should be communicated via the toolchain
-# -DCMAKE_TOOLCHAIN_FILE="%NDK%/build/cmake/android.toolchain.cmake"
-# Android SDK should be indicated via ANDROID_SDK_ROOT
-# -DANDROID_SDK_ROOT="C:/Data/Tools/Android" ^
-# JDK bin should be in PATH
-# C:\Program Files\Android\jdk\jdk-8.0.302.8-hotspot\jdk8u302-b08\bin
+#[[ Quick usage guide!
 
-cmake_minimum_required(VERSION 3.21)
+- Update project() with the name of your app!
+- Update ANDROID_PACKAGE_NAME with a better package name!
+- Add additional code to `target_sources` near the end of this file!
+
+See the readme for more extensive build instructions.
+
+########################
+# For Windows or Linux #
+########################
+
+# Make a folder to build in
+mkdir build
+
+# Configure the build
+cmake -B build
+# Build and run
+cmake --build build -j8 --target run
+
+########################
+# For Android          #
+########################
+
+# Make a folder to build in
+mkdir build-android
+
+# Configure the build, I'll often make a .bat file for this configure command
+# just to make it easier to do!
+cmake -B build-android ^
+  -G Ninja ^
+  -DCMAKE_ANDROID_NDK=%ANDROID_NDK_HOME% ^
+  -DCMAKE_SYSTEM_NAME=Android ^
+  -DCMAKE_SYSTEM_VERSION=32 ^
+  -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+# Build an APK, install, and run it
+cmake --build build-android -j8 --target run
+# Or just build an APK
+cmake --build build-android -j8 --target apk
+]]
+
+cmake_minimum_required(VERSION 3.19)
 project(SKNativeTemplate VERSION "0.1.0" LANGUAGES CXX C)
 
 # Vars for the Android APK
@@ -23,10 +53,14 @@ if (ANDROID)
 else()
 	add_executable(${PROJECT_NAME})
 
-	# Add a "run" target that allows us to build and run with a single command.
+	# Copy DLLs to the right spot so the executable can run. This looks a
+	# little complex for compatibility with Linux, or on Windows if shared
+	# libraries are switched to static. Both cases cause TARGET_RUNTIME_DLLS to
+	# evaluate to an empty list and error the copy command.
 	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> $<TARGET_FILE_DIR:${PROJECT_NAME}>
+		COMMAND ${CMAKE_COMMAND} -E "$<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>>,copy_if_different $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> $<TARGET_FILE_DIR:${PROJECT_NAME}>,true>"
 		COMMAND_EXPAND_LISTS)
+	# Add a "run" target that allows us to build and run with a single command.
 	add_custom_target(run DEPENDS ${PROJECT_NAME}
 		COMMAND $<TARGET_FILE:${PROJECT_NAME}>
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
@@ -43,6 +77,9 @@ FetchContent_Declare(
 	GIT_REPOSITORY https://github.com/StereoKit/StereoKit.git
 	GIT_TAG        v0.3.10 ) # Version tag, could also be a branch name like "develop", or a git hash.
 FetchContent_MakeAvailable(StereoKitC)
+target_compile_options(StereoKitC
+	$<$<CXX_COMPILER_ID:GNU,Clang>:-w -Wno-dev>
+	$<$<CXX_COMPILER_ID:MSVC>:/W0>)
 
 # Link to dependencies
 target_link_libraries( ${PROJECT_NAME}

@@ -13,12 +13,11 @@ For those new to CMake, here's a quick example of how to compile and build this 
 
 # Make a folder to build in
 mkdir build
-cd build
 
 # Configure the build
-cmake ..
+cmake -B build
 # Build and run
-cmake --build . -j8 --target run
+cmake --build build -j8 --target run
 ```
 
 # Linux
@@ -27,7 +26,7 @@ Linux users will need to install some pre-requisites for this template to compil
 
 ```shell
 sudo apt-get update
-sudo apt-get install build-essential cmake unzip libfontconfig1-dev libgl1-mesa-dev libvulkan-dev libx11-xcb-dev libxcb-dri2-0-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-randr0-dev libxrandr-dev libxxf86vm-dev mesa-common-dev libjsoncpp-dev libxfixes-dev libglew-dev
+sudo apt-get install cmake libx11-dev libxfixes-dev libegl-dev libgbm-dev libfontconfig-dev
 ```
 
 # Android
@@ -94,18 +93,17 @@ Ninja's [site is here](https://ninja-build.org/), but you can install it quite e
 
 # Make a folder to build in
 mkdir build-android
-cd build-android
 
 # Configure the build, I'll often make a .bat file for this configure command
 # just to make it easier to do!
-cmake .. ^
+cmake -B build-android ^
   -G Ninja ^
   -DCMAKE_ANDROID_NDK=%ANDROID_NDK_HOME% ^
   -DCMAKE_SYSTEM_NAME=Android ^
   -DCMAKE_SYSTEM_VERSION=32 ^
   -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
 # Build an APK, install, and run it
-cmake --build . -j8 --target run
+cmake --build build-android -j8 --target run
 # Or just build an APK
-cmake --build . -j8 --target apk
+cmake --build build-android -j8 --target apk
 ```
