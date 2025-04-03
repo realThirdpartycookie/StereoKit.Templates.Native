@@ -74,7 +74,7 @@ find_program(KEYTOOL NAMES keytool REQUIRED PATHS ${JAVA_HOME_BIN})
 ###############################################################################
 
 # Set default keystore variables
-set(DEFAULT_KEYSTORE       "${CMAKE_CURRENT_BINARY_DIR}/debug.keystore")
+set(DEFAULT_KEYSTORE       "${CMAKE_CURRENT_SOURCE_DIR}/android/debug.keystore")
 set(DEFAULT_KEYSTORE_ALIAS "androiddebugkey")
 set(DEFAULT_KEYSTORE_PASS  "android")
 set(DEFAULT_KEY_ALIAS_PASS "android")

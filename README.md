@@ -108,6 +108,8 @@ cmake -B build-android ^
   -DCMAKE_SYSTEM_NAME=Android ^
   -DCMAKE_SYSTEM_VERSION=32 ^
   -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+# Same, but as a single line. Nicer if not using a .bat
+cmake -B build-android -G Ninja -DCMAKE_ANDROID_NDK=%ANDROID_NDK_HOME% -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=32 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
 # Build an APK, install, and run it
 cmake --build build-android -j8 --target run
 # Or just build an APK
