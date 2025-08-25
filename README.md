@@ -49,9 +49,9 @@ To build for Android, you need a few SDKs! [Android Studio](https://developer.an
 ### If building on Ubuntu 24.04 onwards (CLI): Quick setup
 If you prefer the command line on Linux, this is a minimal setup that matches the versions this template targets.
 
-### Auto-Setup:  
+### (Optional) Auto-Setup:  
 
-Just run `bash install_android_deps.sh`. Everything will be installed for you.
+Just run `bash install_android_deps.sh` located in android/scripts/. Everything will be installed for you!
 
 ### Manual Setup:
 <details>
@@ -141,10 +141,6 @@ Ninja's [site is here](https://ninja-build.org/), but you can install it quite e
 
 ## Android Build
 
-### for automated Android Build on Linux just run `build_android.sh`
-
-
-
 ```shell
 # From the project root directory
 
@@ -163,7 +159,7 @@ cmake -B build-android ^
 # Same, but as a single line. Nicer if not using a .bat
 cmake -B build-android -G Ninja -DCMAKE_ANDROID_NDK=%ANDROID_NDK_HOME% -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=32 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
 
-#Or for Linux:
+# Or for Linux (notice the $ instead of the %):
 cmake -B build-android -G Ninja -DCMAKE_ANDROID_NDK=$ANDROID_NDK_HOME -DCMAKE_SYSTEM_NAME=Android -DCMAKE_SYSTEM_VERSION=32 -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
 
 
